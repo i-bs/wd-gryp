@@ -12,6 +12,7 @@ import (
 	"github.com/anchore/grype/grype/search"
 	"github.com/anchore/grype/grype/version"
 	"github.com/anchore/grype/grype/vulnerability"
+	"github.com/anchore/grype/grype/vulnerability/vendordb"
 	"github.com/anchore/grype/internal/log"
 	syftPkg "github.com/anchore/syft/syft/pkg"
 )
@@ -36,6 +37,15 @@ func (m *Matcher) Type() match.MatcherType {
 }
 
 func (m *Matcher) Match(store vulnerability.Provider, p pkg.Package) ([]match.Match, []match.IgnoreFilter, error) {
+	matches, ignores, err := m.match(store, p)
+	if err != nil && errors.Is(err, vendordb.ErrSourceUnavailable) {
+		// strict mode (or a cache fault): the vendor OSV data could not be obtained and the scan must fail
+		return nil, nil, match.NewFatalError(m.Type(), err)
+	}
+	return matches, ignores, err
+}
+
+func (m *Matcher) match(store vulnerability.Provider, p pkg.Package) ([]match.Match, []match.IgnoreFilter, error) {
 	var matches []match.Match
 	var ignoreFilters []match.IgnoreFilter
 
@@ -194,6 +204,13 @@ func (m *Matcher) findMatchesForPackage(store vulnerability.Provider, p pkg.Pack
 	secDBMatches, secDBIgnores, err := internal.MatchPackageByDistro(store, p, catalogPkg, m.Type(), nil)
 	if err != nil {
 		return nil, nil, err
+	}
+
+	// the vendor feed is the only source for its distributions (as in trivy and osv-scanner): NVD's CPE records
+	// are not consulted. The fallback below exists for Alpine's secdb, which lists fixed CVEs only; the vendor
+	// feed carries affected ranges with and without a fix.
+	if vendordb.IsVendorDistro(p.Distro) {
+		return secDBMatches, secDBIgnores, nil
 	}
 
 	// TODO: are there other errors that we should handle here that causes this to short circuit

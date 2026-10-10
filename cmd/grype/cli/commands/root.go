@@ -35,6 +35,7 @@ import (
 	"github.com/anchore/grype/grype/vex"
 	vexStatus "github.com/anchore/grype/grype/vex/status"
 	"github.com/anchore/grype/grype/vulnerability"
+	"github.com/anchore/grype/grype/vulnerability/vendordb"
 	"github.com/anchore/grype/internal"
 	"github.com/anchore/grype/internal/bus"
 	"github.com/anchore/grype/internal/format"
@@ -177,6 +178,9 @@ func runGrype(ctx context.Context, app clio.Application, opts *options.Grype, us
 			}()
 			log.Debug("loading DB")
 			vp, status, err = grype.LoadVulnerabilityDB(opts.ToClientConfig(), opts.ToCuratorConfig(), opts.DB.AutoUpdate)
+			if err == nil && status != nil && status.Error == nil {
+				vp, err = wrapWithVendorDB(vp, opts)
+			}
 
 			return validateDBLoad(err, status)
 		},
@@ -391,6 +395,24 @@ func getMatcherConfig(opts *options.Grype) matcher.Config {
 			UseCPEsForEOL:        opts.Match.Rpm.UseCPEsForEOL,
 		},
 	}
+}
+
+// wrapWithVendorDB composes the vendor OSV data source with the vulnerability database: the vendor namespaces are
+// answered from the OSV archives (fetched lazily, when a scan contains vendor packages), everything else by the
+// database.
+func wrapWithVendorDB(vp vulnerability.Provider, opts *options.Grype) (vulnerability.Provider, error) {
+	if !opts.Vendor.Enabled {
+		log.Debug("vendor OSV data source disabled")
+		return vp, nil
+	}
+	cfg := opts.Vendor.ToConfig(opts.DB.AutoUpdate)
+	// repeat the unavailable-archive warning as a notification at the end of the run
+	cfg.Warn = bus.Notify
+	engine, err := vendordb.NewEngine(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("unable to configure the vendor OSV data source: %w", err)
+	}
+	return vendordb.Wrap(vp, engine), nil
 }
 
 func getMatchers(opts *options.Grype) []match.Matcher {

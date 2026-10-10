@@ -102,6 +102,14 @@ func SharedDBs(t *testing.T, fixtureName string) *Builder {
 	}
 }
 
+// WithFixtureDir replaces the fixture directory with one the test derived from the on-disk fixture (a rewritten
+// copy); the database built from it is cached below the test's temporary directory, not in testdata/cache.
+func (b *Builder) WithFixtureDir(dir string) *Builder {
+	b.fixtureDir = dir
+	b.cacheDir = filepath.Join(b.t.TempDir(), "cache")
+	return b
+}
+
 // SelectOnly specifies patterns to filter which vulnerability records are included in the built database.
 // This enables creating focused test databases from larger fixtures.
 //

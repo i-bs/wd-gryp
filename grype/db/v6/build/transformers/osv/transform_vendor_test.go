@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bell-sw/osv-internal/testfix"
+
 	db "github.com/anchore/grype/grype/db/v6"
 	"github.com/anchore/grype/grype/db/v6/build/transformers"
 	"github.com/anchore/grype/grype/distro"
@@ -20,7 +22,7 @@ func TestVendorTransform(t *testing.T) {
 	tests := []transformCase{
 		{
 			name:        "expat CVE-2025-59375",
-			fixturePath: "testdata/BELL-CVE-2025-59375.json",
+			fixturePath: testfix.RewriteOSVFile(t, "testdata/BELL-CVE-2025-59375.json"),
 			want: []transformers.RelatedEntries{{
 				VulnerabilityHandle: &db.VulnerabilityHandle{
 					Name:          "BELL-CVE-2025-59375",

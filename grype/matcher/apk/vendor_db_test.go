@@ -3,6 +3,8 @@ package apk
 import (
 	"testing"
 
+	"github.com/bell-sw/osv-internal/testfix"
+
 	"github.com/anchore/grype/grype/distro"
 	"github.com/anchore/grype/grype/match"
 	"github.com/anchore/grype/grype/pkg"
@@ -10,6 +12,16 @@ import (
 	"github.com/anchore/syft/syft/artifact"
 	syftPkg "github.com/anchore/syft/syft/pkg"
 )
+
+// vendorDBs builds the test database from the vendor records of testdata/vendor-apk; when the module is
+// built for another vendor the records are served with the current family names and ids (testfix.RewriteOSVDir).
+func vendorDBs(t *testing.T) *dbtest.Builder {
+	b := dbtest.DBs(t, "vendor-apk")
+	if testfix.Renamed() {
+		b = b.WithFixtureDir(testfix.RewriteOSVDir(t, "testdata/vendor-apk"))
+	}
+	return b
+}
 
 // TestMatcherApk_Vendor drives the apk matcher against a DB built from a real
 // vendor record. BELL-CVE-2025-59375 fixes expat 2.7.2-r0 on three release
@@ -19,7 +31,7 @@ import (
 //	Linux / hardened containers : 23      → [2.5.0-r0, 2.7.2-r0)
 //	Linux / hardened containers : 25      → [2.7.1-r0, 2.7.2-r0)
 func TestMatcherApk_Vendor(t *testing.T) {
-	dbtest.DBs(t, "vendor-apk").Run(func(t *testing.T, db *dbtest.DB) {
+	vendorDBs(t).Run(func(t *testing.T, db *dbtest.DB) {
 		matcher := Matcher{}
 
 		linuxStream := distro.New(distro.VendorLinux, "stream", "")
@@ -132,7 +144,7 @@ func TestMatcherApk_Vendor(t *testing.T) {
 //	BELL-CVE-2026-21637 (nodejs):  23 → fixed 20.20.0-r0, 25 → fixed 22.22.2-r0, stream → fixed 24.14.1-r0
 //	BELL-CVE-2026-3219  (py3-pip): stream only → [22.3.1-r2, 26.1-r0)
 func TestMatcherApk_Vendor_SBOMImages(t *testing.T) {
-	dbtest.DBs(t, "vendor-apk").Run(func(t *testing.T, db *dbtest.DB) {
+	vendorDBs(t).Run(func(t *testing.T, db *dbtest.DB) {
 		matcher := Matcher{}
 
 		linuxStream := distro.New(distro.VendorLinux, "stream", "")
@@ -235,7 +247,7 @@ func TestMatcherApk_Vendor_SBOMImages(t *testing.T) {
 // The same package name and version on Alpine or Wolfi never matches a
 // BELL-* record (and gets no ignore rule from one).
 func TestMatcherApk_Vendor_OtherDistrosUntouched(t *testing.T) {
-	dbtest.DBs(t, "vendor-apk").Run(func(t *testing.T, db *dbtest.DB) {
+	vendorDBs(t).Run(func(t *testing.T, db *dbtest.DB) {
 		matcher := Matcher{}
 		for name, d := range map[string]*distro.Distro{
 			"alpine 3.18":   dbtest.Alpine318,

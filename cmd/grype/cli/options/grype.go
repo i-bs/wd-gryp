@@ -42,6 +42,7 @@ type Grype struct {
 	FixChannel                 FixChannels        `yaml:"fix-channel" json:"fix-channel" mapstructure:"fix-channel"`                                                       // the fix channels to apply to the distro when matching
 	Timestamp                  bool               `yaml:"timestamp" json:"timestamp" mapstructure:"timestamp"`
 	Alerts                     Alerts             `yaml:"alerts" json:"alerts" mapstructure:"alerts"`
+	Vendor                     Vendor             `yaml:"vendor" json:"vendor" mapstructure:"vendor"` // vendor OSV data source (the vendor's distributions and standalone JDK / NIK runtimes)
 	DatabaseCommand            `yaml:",inline" json:",inline" mapstructure:",squash"`
 }
 
@@ -74,6 +75,7 @@ func DefaultGrype(id clio.Identification) *Grype {
 		SortBy:                     defaultSortBy(),
 		Timestamp:                  true,
 		Alerts:                     defaultAlerts(),
+		Vendor:                     defaultVendor(id),
 	}
 }
 

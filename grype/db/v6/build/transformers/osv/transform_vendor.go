@@ -6,6 +6,9 @@ import (
 	"strconv"
 	"strings"
 
+	osvinternal "github.com/bell-sw/osv-internal"
+	osvdistro "github.com/bell-sw/osv-internal/distro"
+
 	"github.com/anchore/grype/grype/db/data"
 	"github.com/anchore/grype/grype/db/internal/provider/unmarshal"
 	"github.com/anchore/grype/grype/db/internal/versionutil"
@@ -174,10 +177,10 @@ func vendorOSFromEcosystem(ecosystem string) *db.OperatingSystem {
 
 	var osName string
 	switch base {
-	case "Alpaquita":
-		osName = "alpaquita"
-	case "BellSoft Hardened Containers":
-		osName = "bellsoft-hardened-containers"
+	case osvinternal.EcosystemLinux:
+		osName = osvdistro.IDLinux
+	case osvinternal.EcosystemHardened:
+		osName = osvdistro.IDHardened
 	default:
 		return nil
 	}

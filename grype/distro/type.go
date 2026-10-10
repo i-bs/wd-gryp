@@ -1,6 +1,8 @@
 package distro
 
 import (
+	osvdistro "github.com/bell-sw/osv-internal/distro"
+
 	"github.com/anchore/syft/syft/linux"
 )
 
@@ -16,8 +18,8 @@ const (
 	CentOS         Type = "centos"
 	Fedora         Type = "fedora"
 	Alpine         Type = "alpine"
-	VendorLinux    Type = "alpaquita"                    // the vendor's Linux distribution (VERSION_ID stream|23|25)
-	VendorHardened Type = "bellsoft-hardened-containers" // the vendor's hardened container images
+	VendorLinux    Type = osvdistro.IDLinux    // the vendor's Linux distribution (VERSION_ID stream|23|25)
+	VendorHardened Type = osvdistro.IDHardened // the vendor's hardened container images
 	Busybox        Type = "busybox"
 	AmazonLinux    Type = "amazonlinux"
 	OracleLinux    Type = "oraclelinux"
@@ -78,35 +80,35 @@ var All = []Type{
 
 // IDMapping maps a distro ID from the /etc/os-release (e.g. like "ubuntu") to a Distro type.
 var IDMapping = map[string]Type{
-	"debian":                       Debian,
-	"ubuntu":                       Ubuntu,
-	"rhel":                         RedHat,
-	"centos":                       CentOS,
-	"fedora":                       Fedora,
-	"alpine":                       Alpine,
-	"alpaquita":                    VendorLinux,
-	"bellsoft-hardened-containers": VendorHardened,
-	"busybox":                      Busybox,
-	"amzn":                         AmazonLinux,
-	"ol":                           OracleLinux,
-	"arch":                         ArchLinux,
-	"opensuse-leap":                OpenSuseLeap,
-	"sles":                         SLES,
-	"photon":                       Photon,
-	"echo":                         Echo,
-	"mariner":                      Mariner,
-	"azurelinux":                   Azure,
-	"rocky":                        RockyLinux,
-	"almalinux":                    AlmaLinux,
-	"gentoo":                       Gentoo,
-	"wolfi":                        Wolfi,
-	"chainguard":                   Chainguard,
-	"minimos":                      MinimOS,
-	"raspbian":                     Raspbian,
-	"scientific":                   Scientific,
-	"secureos":                     SecureOS,
-	"postmarketos":                 PostmarketOS,
-	"hummingbird":                  Hummingbird,
+	"debian":             Debian,
+	"ubuntu":             Ubuntu,
+	"rhel":               RedHat,
+	"centos":             CentOS,
+	"fedora":             Fedora,
+	"alpine":             Alpine,
+	osvdistro.IDLinux:    VendorLinux,
+	osvdistro.IDHardened: VendorHardened,
+	"busybox":            Busybox,
+	"amzn":               AmazonLinux,
+	"ol":                 OracleLinux,
+	"arch":               ArchLinux,
+	"opensuse-leap":      OpenSuseLeap,
+	"sles":               SLES,
+	"photon":             Photon,
+	"echo":               Echo,
+	"mariner":            Mariner,
+	"azurelinux":         Azure,
+	"rocky":              RockyLinux,
+	"almalinux":          AlmaLinux,
+	"gentoo":             Gentoo,
+	"wolfi":              Wolfi,
+	"chainguard":         Chainguard,
+	"minimos":            MinimOS,
+	"raspbian":           Raspbian,
+	"scientific":         Scientific,
+	"secureos":           SecureOS,
+	"postmarketos":       PostmarketOS,
+	"hummingbird":        Hummingbird,
 }
 
 // aliasTypes maps common aliases to their corresponding Type.
