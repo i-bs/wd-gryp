@@ -348,6 +348,18 @@ func Test_NewDistroFromRelease_Coverage(t *testing.T) {
 			Version: "3.22.0_alpha20250108",
 		},
 		{
+			Name:         vendorOSRelease(t, VendorLinux, "stream"),
+			Type:         VendorLinux,
+			Version:      "stream",
+			LabelVersion: "stream",
+		},
+		{
+			Name:         vendorOSRelease(t, VendorHardened, "stream"),
+			Type:         VendorHardened,
+			Version:      "stream",
+			LabelVersion: "stream",
+		},
+		{
 			Name:    "testdata/os/amazon",
 			Type:    AmazonLinux,
 			Version: "2",
