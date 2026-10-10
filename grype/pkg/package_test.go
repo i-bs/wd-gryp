@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/anchore/grype/grype/distro"
 	"github.com/anchore/packageurl-go"
@@ -1652,4 +1653,33 @@ func withLinuxRelease(s *sbom.SBOM, id string) *sbom.SBOM {
 
 func strRef(s string) *string {
 	return &s
+}
+
+func Test_apkProvidedNames(t *testing.T) {
+	got := apkProvidedNames([]string{
+		"java-jdk-no-deps", "java21-jdk-no-deps", "openjdk21-lite-jdk-no-deps=21.0.2_p14-r1",
+		"so:libz.so.1=1.3.2", "cmd:ldconfig=2.43.0-r10", "pc:zlib=1.3.2", "/bin/sh", "", " distro-baselayout=3.7.2-r1 ",
+	})
+	assert.Equal(t, []string{"java-jdk-no-deps", "java21-jdk-no-deps", "openjdk21-lite-jdk-no-deps", "distro-baselayout"}, got)
+}
+
+func Test_apkMetadataFromPkg_Provides(t *testing.T) {
+	p := syftPkg.Package{
+		Name:    "jdk21-lite-jdk-no-deps",
+		Version: "21.0.2_p14-r1",
+		Type:    syftPkg.ApkPkg,
+		Metadata: syftPkg.ApkDBEntry{
+			Package:       "jdk21-lite-jdk-no-deps",
+			OriginPackage: "jdk21-lite",
+			Provides:      []string{"java-jdk-no-deps", "java21-jdk-no-deps", "openjdk21-lite-jdk-no-deps=21.0.2_p14-r1"},
+			Files:         []syftPkg.ApkFileRecord{{Path: "/usr/lib/jvm/jdk21-lite/release"}},
+		},
+	}
+	gp := New(p)
+	md, ok := gp.Metadata.(ApkMetadata)
+	require.True(t, ok)
+	assert.Equal(t, []string{"java-jdk-no-deps", "java21-jdk-no-deps", "openjdk21-lite-jdk-no-deps"}, md.Provides)
+	assert.Equal(t, []string{"/usr/lib/jvm/jdk21-lite/release"}, md.OwnedFiles())
+	require.Len(t, gp.Upstreams, 1)
+	assert.Equal(t, "jdk21-lite", gp.Upstreams[0].Name)
 }

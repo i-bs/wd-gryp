@@ -3,7 +3,9 @@ package apk
 import (
 	"errors"
 	"fmt"
+	"strings"
 
+	"github.com/anchore/grype/grype/distro"
 	"github.com/anchore/grype/grype/match"
 	"github.com/anchore/grype/grype/matcher/internal"
 	"github.com/anchore/grype/grype/pkg"
@@ -60,6 +62,16 @@ func (m *Matcher) Match(store vulnerability.Provider, p pkg.Package) ([]match.Ma
 		return nil, nil, err
 	}
 	ignoreFilters = append(ignoreFilters, naks...)
+
+	// some distributions key advisories on a name the package only carries in its apk "provides" list
+	if usesProvidedNameAliases(p.Distro) {
+		aliasMatches, aliasIgnores, err := m.findMatchesForProvidedNames(store, p)
+		if err != nil {
+			return nil, nil, err
+		}
+		matches = append(matches, aliasMatches...)
+		ignoreFilters = append(ignoreFilters, aliasIgnores...)
+	}
 
 	return matches, ignoreFilters, nil
 }
@@ -258,4 +270,131 @@ func (m *Matcher) findNaksForPackage(provider vulnerability.Provider, p pkg.Pack
 	}
 
 	return internal.OwnershipIgnores(p, "Explicit APK NAK", naks...), nil
+}
+
+// providedNameAliasDistros are the distributions whose feeds key some advisories on a name the installed package
+// only carries in its apk "provides" list: the vendor publishes its JDK advisories as openjdk<major>[-lite]
+// while the apk origin is liberica<major>[-lite] and the binary package provides openjdk21-lite-jdk-no-deps.
+// Resolution order: see findMatchesForProvidedNames.
+var providedNameAliasDistros = []distro.Type{distro.VendorLinux, distro.VendorHardened}
+
+func usesProvidedNameAliases(d *distro.Distro) bool {
+	if d == nil {
+		return false
+	}
+	for _, t := range providedNameAliasDistros {
+		if d.Type == t {
+			return true
+		}
+	}
+	return false
+}
+
+// providedNameCandidates lists the alias names to try for p, in order: the provided names, then the provided names
+// with the sub-package suffix stripped. Capability-style entries (so:, cmd:, pc:, file paths) are ignored.
+func providedNameCandidates(p pkg.Package) []string {
+	md, ok := p.Metadata.(pkg.ApkMetadata)
+	if !ok || len(md.Provides) == 0 {
+		return nil
+	}
+	origin := p.Name
+	for _, u := range p.Upstreams {
+		if u.Name != "" {
+			origin = u.Name
+			break
+		}
+	}
+	suffix := ""
+	if origin != p.Name && strings.HasPrefix(p.Name, origin) {
+		suffix = strings.TrimPrefix(p.Name, origin)
+	}
+	seen := map[string]bool{p.Name: true, origin: true}
+	var names, stripped []string
+	add := func(dst *[]string, name string) {
+		if name == "" || seen[name] {
+			return
+		}
+		seen[name] = true
+		*dst = append(*dst, name)
+	}
+	for _, provided := range md.Provides {
+		add(&names, provided)
+		if suffix != "" && strings.HasSuffix(provided, suffix) {
+			add(&stripped, strings.TrimSuffix(provided, suffix))
+		}
+	}
+	return append(names, stripped...)
+}
+
+// knownToFeed reports whether the distro feed carries any record for the given package name.
+func knownToFeed(store vulnerability.Provider, d distro.Distro, name string) (bool, error) {
+	vulns, err := store.FindVulnerabilities(search.ByPackageName(name), search.ByDistro(d))
+	if err != nil {
+		return false, err
+	}
+	return len(vulns) > 0, nil
+}
+
+// findMatchesForProvidedNames searches the distro feed under the first provided-name alias it knows, when neither
+// the package name nor its origin is known to the feed (those are covered by the direct and origin searches). The
+// alias is searched like an origin package and the matches are reported as indirect matches of the installed package.
+func (m *Matcher) findMatchesForProvidedNames(store vulnerability.Provider, p pkg.Package) ([]match.Match, []match.IgnoreFilter, error) {
+	if p.Distro == nil || isUnknownVersion(p.Version) {
+		return nil, nil, nil
+	}
+	candidates := providedNameCandidates(p)
+	if len(candidates) == 0 {
+		return nil, nil, nil
+	}
+
+	// the feed knows the package (or its origin) under its own name: nothing to resolve
+	for _, name := range append([]string{p.Name}, upstreamNames(p)...) {
+		known, err := knownToFeed(store, *p.Distro, name)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to look up distro=%q pkg=%q: %w", p.Distro, name, err)
+		}
+		if known {
+			return nil, nil, nil
+		}
+	}
+
+	for _, name := range candidates {
+		known, err := knownToFeed(store, *p.Distro, name)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to look up distro=%q alias=%q: %w", p.Distro, name, err)
+		}
+		if !known {
+			continue
+		}
+		log.WithFields("package", p.Name, "alias", name).Trace("apk package resolved through a provided name")
+		aliasPkg := p
+		aliasPkg.Upstreams = []pkg.UpstreamPackage{{Name: name}}
+		var matches []match.Match
+		var ignores []match.IgnoreFilter
+		for _, indirectPackage := range pkg.UpstreamPackages(aliasPkg) {
+			indirectMatches, indirectIgnores, err := m.findMatchesForPackage(store, indirectPackage, &p)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to find vulnerabilities for apk provided name %q: %w", name, err)
+			}
+			matches = append(matches, indirectMatches...)
+			ignores = append(ignores, indirectIgnores...)
+		}
+		match.ConvertToIndirectMatches(matches, p)
+		return matches, ignores, nil
+	}
+	return nil, nil, nil
+}
+
+func upstreamNames(p pkg.Package) []string {
+	var names []string
+	for _, u := range p.Upstreams {
+		if u.Name != "" {
+			names = append(names, u.Name)
+		}
+	}
+	return names
+}
+
+func isUnknownVersion(v string) bool {
+	return v == "" || strings.EqualFold(v, "unknown")
 }

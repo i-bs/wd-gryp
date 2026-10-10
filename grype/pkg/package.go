@@ -388,11 +388,31 @@ func apkMetadataFromPkg(p syftPkg.Package) any {
 		}
 
 		metadata.Files = fileRecords
+		metadata.Provides = apkProvidedNames(m.Provides)
 
 		return metadata
 	}
 
 	return nil
+}
+
+// apkProvidedNames keeps the package names from an apk "provides" list, dropping so:/cmd:/pc: style capabilities,
+// file paths and the "=version" suffixes.
+func apkProvidedNames(provides []string) []string {
+	var out []string
+	for _, p := range provides {
+		p = strings.TrimSpace(p)
+		if p == "" || strings.Contains(p, ":") || strings.HasPrefix(p, "/") {
+			continue
+		}
+		if idx := strings.IndexAny(p, "=<>~"); idx > 0 {
+			p = p[:idx]
+		}
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 func golangMetadataFromPkg(p syftPkg.Package) any {

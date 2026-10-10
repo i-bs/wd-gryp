@@ -10,6 +10,9 @@ var _ FileOwner = (*ApkMetadata)(nil)
 
 type ApkMetadata struct {
 	Files []ApkFileRecord `json:"files"`
+	// Provides are the package names this apk provides (the "p:" field, without so:/cmd:/pc: capabilities and version
+	// suffixes); some distributions key advisories on a provided name, see matcher/apk.
+	Provides []string `json:"provides,omitempty"`
 }
 
 // ApkFileRecord represents a single file listing and metadata from a APK DB entry (which may have many of these file records).
