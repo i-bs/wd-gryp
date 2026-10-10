@@ -18,6 +18,7 @@ import (
 	"github.com/anchore/grype/grype/matcher/ruby"
 	"github.com/anchore/grype/grype/matcher/rust"
 	"github.com/anchore/grype/grype/matcher/stock"
+	"github.com/anchore/grype/grype/matcher/vendorjdk"
 )
 
 // Config contains values used by individual matcher structs for advanced configuration
@@ -53,5 +54,6 @@ func NewDefaultMatchers(mc Config) []match.Matcher {
 		stock.NewStockMatcher(mc.Stock),
 		&bitnami.Matcher{},
 		&pacman.Matcher{},
+		vendorjdk.NewVendorJDKMatcher(),
 	}
 }

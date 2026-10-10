@@ -1415,6 +1415,20 @@ func Test_RemovePackagesByOverlap(t *testing.T) {
 			expectedPackages: []string{"rpm:python3-rpm@4.14.3-26.el8", "python:rpm@4.14.3"},
 		},
 		{
+			name: "vendor runtime owned by an apk package is covered by the apk ecosystem (any version notation)",
+			sbom: withLinuxRelease(catalogWithOverlaps(
+				[]string{"apk:jdk21-lite-jdk-no-deps@21.0.2_p14-r1", "liberica-jdk:jdk-lite@21.0.2+14"},
+				[]string{"apk:jdk21-lite-jdk-no-deps@21.0.2_p14-r1 -> liberica-jdk:jdk-lite@21.0.2+14"}), string(distro.VendorLinux)),
+			expectedPackages: []string{"apk:jdk21-lite-jdk-no-deps@21.0.2_p14-r1"},
+		},
+		{
+			name: "standalone vendor runtime (no owning OS package) is kept",
+			sbom: withLinuxRelease(catalogWithOverlaps(
+				[]string{"deb:libc6@2.31-13", "liberica-jdk:jdk@21.0.2+14"},
+				[]string{}), "debian"),
+			expectedPackages: []string{"liberica-jdk:jdk@21.0.2+14", "deb:libc6@2.31-13"},
+		},
+		{
 			name: "remove overlapping package when parent version is prefix of child version",
 			sbom: withLinuxRelease(catalogWithOverlaps(
 				[]string{"rpm:kernel-rt-core@5.14.0-503.40.1.el9_5", "linux-kernel:linux-kernel@5.14.0-503.40.1.el9_5.x86_64+rt"},
