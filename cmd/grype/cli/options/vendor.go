@@ -40,13 +40,9 @@ const (
 
 var vendorFeedHelp = `location of the vendor OSV archive of one product, as "<product>=<url>"; repeatable; products: ` + strings.Join(osvinternal.Ecosystems, ", ")
 
-// vendorProducts are the product (ecosystem family) names accepted in a feed entry.
-var vendorProducts = []string{
-	vendordb.EcosystemLinux,
-	vendordb.EcosystemHardened,
-	vendordb.EcosystemJDK,
-	vendordb.EcosystemNIK,
-}
+// vendorProducts are the product (ecosystem family) names accepted in a feed entry: the module's distributions
+// and standalone product families.
+var vendorProducts = osvinternal.Ecosystems
 
 var _ interface {
 	clio.FlagAdder
@@ -73,7 +69,7 @@ func (b *Vendor) AddFlags(flags clio.FlagSet) {
 
 func (b *Vendor) DescribeFields(descriptions clio.FieldDescriptionSet) {
 	descriptions.Add(&b.Enabled, `use the `+osvinternal.Vendor+` OSV data for its distributions and standalone JDK / NIK runtimes`)
-	descriptions.Add(&b.URL, vendorURLHelp+`; empty = the built-in source of each product: `+vendordb.DefaultBaseURL+` for `+vendordb.EcosystemLinux+` and `+vendordb.EcosystemHardened+`, `+vendordb.DefaultJDKBaseURL+` for `+vendordb.EcosystemJDK+` and `+vendordb.EcosystemNIK)
+	descriptions.Add(&b.URL, vendorURLHelp+`; empty = the built-in source of each product: `+vendordb.DefaultBaseURL+` for `+vendordb.EcosystemLinux+` and `+vendordb.EcosystemHardened+`, `+vendordb.DefaultJDKBaseURL+` for the standalone runtimes (`+strings.Join(vendorRuntimeFamilies(), ", ")+`)`)
 	descriptions.Add(&b.Feed, vendorFeedHelp+`; a list of entries or a map product: url; an entry wins over url`)
 	descriptions.Add(&b.Strict, vendorStrictHelp)
 	descriptions.Add(&b.CacheDir, `directory holding the downloaded archives and their indexes (one sub-directory per product)`)
@@ -219,4 +215,13 @@ func (b Vendor) ToConfig(autoUpdate bool) vendordb.Config {
 		Strict:        b.Strict,
 		Timeout:       b.DownloadTimeout,
 	}
+}
+
+// vendorRuntimeFamilies are the families of the standalone products (osvinternal.Products).
+func vendorRuntimeFamilies() []string {
+	var out []string
+	for _, p := range osvinternal.Products {
+		out = append(out, p.Family)
+	}
+	return out
 }

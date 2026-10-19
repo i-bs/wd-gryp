@@ -18,6 +18,7 @@ import (
 	syftPkg "github.com/anchore/syft/syft/pkg"
 	"github.com/anchore/syft/syft/sbom"
 	"github.com/anchore/syft/syft/testutil"
+	osvinternal "github.com/bell-sw/osv-internal"
 )
 
 func TestNew(t *testing.T) {
@@ -1339,6 +1340,10 @@ func TestFromPackages_OwnershipByFileOverlap(t *testing.T) {
 }
 
 func Test_RemovePackagesByOverlap(t *testing.T) {
+	// a fictional runtime family: the rule applies to every type of osvinternal.Products
+	saved := osvinternal.Products
+	t.Cleanup(func() { osvinternal.Products = saved })
+	osvinternal.Products = []osvinternal.Product{{Family: "Test JDK", PURLName: "test-jdk", Kind: osvinternal.KindJDK}}
 	tests := []struct {
 		name             string
 		sbom             *sbom.SBOM
@@ -1417,16 +1422,16 @@ func Test_RemovePackagesByOverlap(t *testing.T) {
 		{
 			name: "vendor runtime owned by an apk package is covered by the apk ecosystem (any version notation)",
 			sbom: withLinuxRelease(catalogWithOverlaps(
-				[]string{"apk:jdk21-lite-jdk-no-deps@21.0.2_p14-r1", "liberica-jdk:jdk-lite@21.0.2+14"},
-				[]string{"apk:jdk21-lite-jdk-no-deps@21.0.2_p14-r1 -> liberica-jdk:jdk-lite@21.0.2+14"}), string(distro.VendorLinux)),
-			expectedPackages: []string{"apk:jdk21-lite-jdk-no-deps@21.0.2_p14-r1"},
+				[]string{"apk:jdk21-lite@21.0.2_p14-r1", "test-jdk:jdk-lite@21.0.2+14"},
+				[]string{"apk:jdk21-lite@21.0.2_p14-r1 -> test-jdk:jdk-lite@21.0.2+14"}), string(distro.VendorLinux)),
+			expectedPackages: []string{"apk:jdk21-lite@21.0.2_p14-r1"},
 		},
 		{
 			name: "standalone vendor runtime (no owning OS package) is kept",
 			sbom: withLinuxRelease(catalogWithOverlaps(
-				[]string{"deb:libc6@2.31-13", "liberica-jdk:jdk@21.0.2+14"},
+				[]string{"deb:libc6@2.31-13", "test-jdk:jdk@21.0.2+14"},
 				[]string{}), "debian"),
-			expectedPackages: []string{"liberica-jdk:jdk@21.0.2+14", "deb:libc6@2.31-13"},
+			expectedPackages: []string{"test-jdk:jdk@21.0.2+14", "deb:libc6@2.31-13"},
 		},
 		{
 			name: "remove overlapping package when parent version is prefix of child version",

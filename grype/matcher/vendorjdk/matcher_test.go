@@ -8,6 +8,7 @@ import (
 
 	osvinternal "github.com/bell-sw/osv-internal"
 	"github.com/bell-sw/osv-internal/osvdata"
+	"github.com/bell-sw/osv-internal/testfix"
 	osvjdk "github.com/bell-sw/osv-internal/vendorjdk"
 
 	"github.com/anchore/grype/grype/match"
@@ -18,8 +19,16 @@ import (
 	syftPkg "github.com/anchore/syft/syft/pkg"
 )
 
+// The first JDK and NIK families of the module: the fixtures are theirs.
+var (
+	jdkProduct = testfix.Product(osvinternal.KindJDK)
+	nikProduct = testfix.Product(osvinternal.KindNIK)
+	jdkType    = syftPkg.VendorRuntimeType(jdkProduct.Family)
+	nikType    = syftPkg.VendorRuntimeType(nikProduct.Family)
+)
+
 func TestVendorJDKMatcher(t *testing.T) {
-	jdk21, jdk8, nik2321 := osvinternal.Ecosystem(vendordb.EcosystemJDK, "21"), osvinternal.Ecosystem(vendordb.EcosystemJDK, "8"), osvinternal.Ecosystem(vendordb.EcosystemNIK, "23-21")
+	jdk21, jdk8, nik2321 := jdkProduct.Ecosystem("21"), jdkProduct.Ecosystem("8"), nikProduct.Ecosystem("23-21")
 	engine := vendordbtest.New()
 	engine.Add(jdk21, "jdk", osvdata.Advisory{
 		ID: "BELL-CVE-2025-24855", CVE: "CVE-2025-24855", Introduced: "21.0.1+12", Fixed: "21.0.8+12", Severity: "HIGH",
@@ -37,12 +46,14 @@ func TestVendorJDKMatcher(t *testing.T) {
 		ID: "BELL-CVE-2025-23165", CVE: "CVE-2025-23165", Introduced: "0", Fixed: "23.1.8+1", Severity: "HIGH",
 	}, func(v string) bool { return v == "23.1.0+1" })
 
-	assert.Equal(t, []syftPkg.Type{syftPkg.VendorJdkPkg, syftPkg.VendorNikPkg}, m.PackageTypes())
+	assert.Equal(t, syftPkg.VendorRuntimeTypes(), m.PackageTypes(), "one package type per product family of the module")
+	assert.Contains(t, m.PackageTypes(), jdkType)
+	assert.Contains(t, m.PackageTypes(), nikType)
 	assert.Equal(t, match.VendorJDKMatcher, m.Type())
 
 	t.Run("jdk 21.0.2+14 is affected by both advisories", func(t *testing.T) {
-		p := pkg.Package{ID: "jdk21", Name: "jdk", Version: "21.0.2+14", Type: syftPkg.VendorJdkPkg, Language: syftPkg.Java,
-			PURL: osvjdk.PURL(osvjdk.VariantJDK, "21.0.2+14")}
+		p := pkg.Package{ID: "jdk21", Name: "jdk", Version: "21.0.2+14", Type: jdkType, Language: syftPkg.Java,
+			PURL: osvjdk.PURL(jdkProduct.Family, osvjdk.VariantJDK, "21.0.2+14")}
 		matches, ignores, err := m.Match(store, p)
 		require.NoError(t, err)
 		assert.Empty(t, ignores)
@@ -68,7 +79,7 @@ func TestVendorJDKMatcher(t *testing.T) {
 	})
 
 	t.Run("jdk 8u402+7 uses the JDK:8 ecosystem", func(t *testing.T) {
-		p := pkg.Package{ID: "jdk8", Name: "jdk", Version: "8u402+7", Type: syftPkg.VendorJdkPkg, Language: syftPkg.Java}
+		p := pkg.Package{ID: "jdk8", Name: "jdk", Version: "8u402+7", Type: jdkType, Language: syftPkg.Java}
 		matches, _, err := m.Match(store, p)
 		require.NoError(t, err)
 		require.Len(t, matches, 1)
@@ -77,14 +88,14 @@ func TestVendorJDKMatcher(t *testing.T) {
 	})
 
 	t.Run("fixed runtime has no matches", func(t *testing.T) {
-		p := pkg.Package{ID: "jdk21f", Name: "jdk", Version: "21.0.8+12", Type: syftPkg.VendorJdkPkg, Language: syftPkg.Java}
+		p := pkg.Package{ID: "jdk21f", Name: "jdk", Version: "21.0.8+12", Type: jdkType, Language: syftPkg.Java}
 		matches, _, err := m.Match(store, p)
 		require.NoError(t, err)
 		assert.Empty(t, matches)
 	})
 
 	t.Run("a CSPU version (fourth component) reaches the engine unchanged", func(t *testing.T) {
-		p := pkg.Package{ID: "jdk21cspu", Name: "jdk", Version: "21.0.12.1+1", Type: syftPkg.VendorJdkPkg, Language: syftPkg.Java}
+		p := pkg.Package{ID: "jdk21cspu", Name: "jdk", Version: "21.0.12.1+1", Type: jdkType, Language: syftPkg.Java}
 		matches, _, err := m.Match(store, p)
 		require.NoError(t, err)
 		assert.Empty(t, matches)
@@ -92,15 +103,15 @@ func TestVendorJDKMatcher(t *testing.T) {
 	})
 
 	t.Run("other variants are keyed separately", func(t *testing.T) {
-		p := pkg.Package{ID: "jre21", Name: "jre", Version: "21.0.2+14", Type: syftPkg.VendorJdkPkg, Language: syftPkg.Java}
+		p := pkg.Package{ID: "jre21", Name: "jre", Version: "21.0.2+14", Type: jdkType, Language: syftPkg.Java}
 		matches, _, err := m.Match(store, p)
 		require.NoError(t, err)
 		assert.Empty(t, matches, "the fake feed has entries for jdk only")
 	})
 
 	t.Run("nik 23.1.0+1 core uses the NIK:23-21 ecosystem", func(t *testing.T) {
-		p := pkg.Package{ID: "nik23", Name: "core", Version: "23.1.0+1", Type: syftPkg.VendorNikPkg, Language: syftPkg.Java,
-			PURL:     osvjdk.PURLNIK(osvjdk.BundleCore, "23.1.0+1"),
+		p := pkg.Package{ID: "nik23", Name: "core", Version: "23.1.0+1", Type: nikType, Language: syftPkg.Java,
+			PURL:     osvjdk.PURL(nikProduct.Family, osvjdk.BundleCore, "23.1.0+1"),
 			Metadata: pkg.JavaVMInstallationMetadata{Release: pkg.JavaVMReleaseMetadata{JavaVersion: "21+37"}}}
 		matches, _, err := m.Match(store, p)
 		require.NoError(t, err)
@@ -112,7 +123,7 @@ func TestVendorJDKMatcher(t *testing.T) {
 	})
 
 	t.Run("nik of another java line is keyed separately", func(t *testing.T) {
-		p := pkg.Package{ID: "nik23-17", Name: "core", Version: "23.1.0+1", Type: syftPkg.VendorNikPkg, Language: syftPkg.Java,
+		p := pkg.Package{ID: "nik23-17", Name: "core", Version: "23.1.0+1", Type: nikType, Language: syftPkg.Java,
 			Metadata: pkg.JavaVMInstallationMetadata{Release: pkg.JavaVMReleaseMetadata{JavaVersion: "17.0.9"}}}
 		matches, _, err := m.Match(store, p)
 		require.NoError(t, err)
@@ -120,7 +131,7 @@ func TestVendorJDKMatcher(t *testing.T) {
 	})
 
 	t.Run("unknown version is skipped", func(t *testing.T) {
-		p := pkg.Package{ID: "jdkx", Name: "jdk", Version: "unknown", Type: syftPkg.VendorJdkPkg, Language: syftPkg.Java}
+		p := pkg.Package{ID: "jdkx", Name: "jdk", Version: "unknown", Type: jdkType, Language: syftPkg.Java}
 		matches, _, err := m.Match(store, p)
 		require.NoError(t, err)
 		assert.Empty(t, matches)

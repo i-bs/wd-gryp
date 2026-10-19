@@ -10,6 +10,7 @@ import (
 	"github.com/anchore/clio"
 	"github.com/anchore/grype/grype/vulnerability/vendordb"
 	osvinternal "github.com/bell-sw/osv-internal"
+	"github.com/bell-sw/osv-internal/testfix"
 )
 
 func TestVendor_Defaults(t *testing.T) {
@@ -31,12 +32,12 @@ func TestVendor_Defaults(t *testing.T) {
 // url / feed / strict: the feed of a product wins over url; product names are case-insensitive; the setting may come
 // from the flag (repeatable), the environment (comma-separated pairs) or the config file (list or map).
 func TestVendor_Feeds(t *testing.T) {
-	linux, hardened, jdk, nik := vendordb.EcosystemLinux, vendordb.EcosystemHardened, vendordb.EcosystemJDK, vendordb.EcosystemNIK
+	linux, hardened, jdk, nik := vendordb.EcosystemLinux, vendordb.EcosystemHardened, testfix.Product(osvinternal.KindJDK).Family, testfix.Product(osvinternal.KindNIK).Family
 	want := map[string]string{
-		vendordb.EcosystemLinux:    "file:///srv/a",
-		vendordb.EcosystemHardened: "https://mirror.example/h,v2",
-		vendordb.EcosystemJDK:      "/srv/jdk-osv/out",
-		vendordb.EcosystemNIK:      "/srv/nik/all.zip",
+		linux:    "file:///srv/a",
+		hardened: "https://mirror.example/h,v2",
+		jdk:      "/srv/jdk-osv/out",
+		nik:      "/srv/nik/all.zip",
 	}
 	tests := []struct {
 		name string
@@ -68,7 +69,8 @@ func TestVendor_Feeds(t *testing.T) {
 }
 
 func TestVendor_InvalidFeeds(t *testing.T) {
-	for _, feed := range []any{"Zulu=/z", vendordb.EcosystemJDK, vendordb.EcosystemJDK + "=", []any{42}, 7} {
+	jdk := testfix.Product(osvinternal.KindJDK).Family
+	for _, feed := range []any{"Zulu=/z", jdk, jdk + "=", []any{42}, 7} {
 		b := defaultVendor(clio.Identification{Name: "grype"})
 		b.Feed = feed
 		assert.Error(t, b.PostLoad(), "%v", feed)

@@ -256,7 +256,7 @@ func excludePackage(p *Package, parent *Package) bool {
 
 	// A vendor runtime found from its binaries that is owned by an OS package (e.g. an apk-installed JDK)
 	// is covered by the OS package's advisories; drop it regardless of the version notation (21.0.2_p14-r1 vs 21.0.2+14).
-	if (p.Type == syftPkg.VendorJdkPkg || p.Type == syftPkg.VendorNikPkg) && isOSPackage(parent) {
+	if syftPkg.IsVendorRuntime(p.Type) && isOSPackage(parent) {
 		return true
 	}
 

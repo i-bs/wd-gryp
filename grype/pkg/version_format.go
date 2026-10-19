@@ -6,6 +6,9 @@ import (
 )
 
 func VersionFormat(p Package) version.Format {
+	if syftPkg.IsVendorRuntime(p.Type) {
+		return version.JVMFormat
+	}
 	switch p.Type {
 	case syftPkg.ApkPkg:
 		return version.ApkFormat
@@ -29,8 +32,6 @@ func VersionFormat(p Package) version.Format {
 		return version.GolangFormat
 	case syftPkg.AlpmPkg:
 		return version.PacmanFormat
-	case syftPkg.VendorJdkPkg, syftPkg.VendorNikPkg:
-		return version.JVMFormat
 	}
 
 	if isJvmPackage(p) {

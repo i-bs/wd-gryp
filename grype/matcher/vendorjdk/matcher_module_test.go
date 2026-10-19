@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	osvinternal "github.com/bell-sw/osv-internal"
 	bsmatch "github.com/bell-sw/osv-internal/match"
 	"github.com/bell-sw/osv-internal/osvdata"
 
@@ -44,11 +43,11 @@ func (e indexEngine) Provenance() map[string]time.Time { return nil }
 // ".0.1") is equivalent to the PSU of its cycle when compared with an advisory's fixed version (advisories list PSU
 // versions only), and a CSPU (fourth component) is newer than the PSU it is built on.
 func TestVendorJDKMatcher_ReleaseTypes(t *testing.T) {
-	jdk21 := osvinternal.Ecosystem(vendordb.EcosystemJDK, "21")
+	jdk21 := jdkProduct.Ecosystem("21")
 	adv := func(id, fixed string) osvdata.Advisory {
 		return osvdata.Advisory{ID: "BELL-" + id, CVE: id, Ecosystem: jdk21, Package: "jdk", Introduced: "0", Fixed: fixed, Severity: "HIGH"}
 	}
-	engine := indexEngine{idx: osvdata.New(vendordb.EcosystemJDK,
+	engine := indexEngine{idx: osvdata.New(jdkProduct.Family,
 		adv("CVE-2099-0010", "21.0.10+10"),
 		adv("CVE-2099-0011", "21.0.11+11"),
 		adv("CVE-2099-0012", "21.0.12.1+1"),
@@ -69,7 +68,7 @@ func TestVendorJDKMatcher_ReleaseTypes(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := pkg.Package{ID: pkg.ID(tt.version), Name: "jdk", Version: tt.version, Type: syftPkg.VendorJdkPkg, Language: syftPkg.Java}
+			p := pkg.Package{ID: pkg.ID(tt.version), Name: "jdk", Version: tt.version, Type: jdkType, Language: syftPkg.Java}
 			matches, _, err := m.Match(store, p)
 			require.NoError(t, err)
 			var got []string

@@ -1,6 +1,6 @@
 /*
-Package vendorjdk matches standalone vendor runtimes found from their binaries (syft package types VendorJdkPkg and
-VendorNikPkg, ecosystems "<JDK family>:<major>" and "<NIK family>:<nik major>-<java major>") against the OSV data
+Package vendorjdk matches standalone vendor runtimes found from their binaries (the syft package types of the product families, syftPkg.VendorRuntimeTypes;
+ecosystems "<JDK family>:<major>" and "<NIK family>:<nik major>-<java major>") against the OSV data
 served by the vendordb provider. No CPE / NVD matching is attempted, so a runtime is never reported twice.
 */
 package vendorjdk
@@ -28,7 +28,7 @@ func NewVendorJDKMatcher() *Matcher {
 }
 
 func (m *Matcher) PackageTypes() []syftPkg.Type {
-	return []syftPkg.Type{syftPkg.VendorJdkPkg, syftPkg.VendorNikPkg}
+	return syftPkg.VendorRuntimeTypes()
 }
 
 func (m *Matcher) Type() match.MatcherType {
